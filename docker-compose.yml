@@ -1,0 +1,71 @@
+services:
+  # app:
+  #   container_name: Reminder_Container
+  #   build: .
+  #   ports:
+  #     - '3000:3000'
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   restart: always
+  #   networks:
+  #     - app-network
+  #   logging:
+  #     driver: json-file
+  #     options:
+  #       max-size: '10m'
+  #       max-file: '3'
+  #   volumes:
+  #     - .:/app # Bind mount to sync local changes
+  #     - /app/node_modules # Ignore node_modules (prevent overwriting)
+  #   environment:
+  #     - CHOKIDAR_USEPOLLING=true
+  #   command: npm run start:dev # Use NestJS watch mode
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_container
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - app-network
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost']
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7.0
+    container_name: redis_container
+    restart: always
+    ports:
+      - '6379:6379'
+    networks:
+      - app-network
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  mysql_data:
+
+networks:
+  app-network:
+    driver: bridge
