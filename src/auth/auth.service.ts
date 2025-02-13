@@ -1,5 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import * as bcrypt from 'bcrypt';
@@ -22,19 +26,25 @@ export class AuthService {
    * @returns A success message and the created user.
    */
   async signup(signupDto: SignupDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const hashedPassword = await bcrypt.hash(signupDto.password, 10);
-    const user = await this.usersService.create({
-      ...signupDto,
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-      password: hashedPassword,
-    });
-    return {
-      message: 'User registered successfully',
-      user: instanceToPlain(user),
-    };
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const hashedPassword = await bcrypt.hash(signupDto.password, 10);
+      const user = await this.usersService.create({
+        ...signupDto,
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        password: hashedPassword,
+      });
+      return {
+        message: 'User registered successfully',
+        user: instanceToPlain(user),
+      };
+    } catch (error) {
+      if (error instanceof ConflictException) {
+        throw new ConflictException('Email already exists');
+      }
+      throw error;
+    }
   }
-
   /**
    * Validate user credentials.
    * @param email - User's email.
@@ -43,13 +53,15 @@ export class AuthService {
    */
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (user && (await bcrypt.compare(password, user.password))) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { password, ...result } = user;
-      return result;
-    }
-    return null;
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) throw new UnauthorizedException('Invalid credentials');
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _, ...userWithoutPassword } = user;
+    return userWithoutPassword;
   }
 
   /**
@@ -58,16 +70,20 @@ export class AuthService {
    * @returns A JWT token.
    */
   async login(loginDto: LoginDto) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const user = await this.validateUser(loginDto.email, loginDto.password);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+      const user = await this.validateUser(loginDto.email, loginDto.password);
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const payload: UserPayload = { email: user.email, sub: user.id };
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+      const payload: UserPayload = { email: user.email, sub: user.id };
+      return {
+        access_token: this.jwtService.sign(payload),
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      throw error;
+    }
   }
 }

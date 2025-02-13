@@ -1,4 +1,5 @@
 import { Exclude } from 'class-transformer';
+import { Task } from 'src/tasks/entities/task.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,6 +7,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   Unique,
+  OneToMany,
 } from 'typeorm';
 
 // import { Task } from '../task/task.entity';
@@ -33,8 +35,8 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   device_token!: string;
 
-  //   @OneToMany(() => Task, (task) => task.user)
-  //     tasks!: Task[];
+  @OneToMany(() => Task, (task) => task.user)
+  tasks!: Task[];
 
   //   @OneToOne(() => NotificationPreference, (preferences) => preferences.user)
   //   preferences: NotificationPreference;
