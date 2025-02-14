@@ -1,16 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import * as admin from 'firebase-admin';
-import * as path from 'path';
 
 @Injectable()
 export class FcmProvider {
   constructor() {
-    const serviceAccountPath = path.resolve(
-      __dirname,
-      'serviceAccountKey.json',
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    const serviceAccount = JSON.parse(
+      process.env['FIREBASE_SERVICE_ACCOUNT_KEY'] as string,
     );
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-require-imports
-    const serviceAccount = require(serviceAccountPath);
 
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
