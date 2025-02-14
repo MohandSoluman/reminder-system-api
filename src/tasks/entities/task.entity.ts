@@ -1,4 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  Index,
+} from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -26,7 +32,8 @@ export class Task {
     description: 'Scheduled time for the task',
     example: '2023-12-25T10:00:00Z',
   })
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', nullable: false })
+  @Index()
   scheduledTime!: Date;
 
   @ApiProperty({
@@ -36,6 +43,6 @@ export class Task {
   @Column({ default: false })
   isCompleted!: boolean;
 
-  @ManyToOne(() => User, (user) => user.tasks)
+  @ManyToOne(() => User, (user) => user.tasks, { onDelete: 'CASCADE' })
   user!: User;
 }

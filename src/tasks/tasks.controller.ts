@@ -23,6 +23,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { RescheduleTaskDto } from './dto/reschedule-task.dto';
 
 @ApiTags('tasks')
 @Controller('tasks')
@@ -84,5 +85,22 @@ export class TasksController {
   deleteTask(@Param('id') id: string, @Req() req): Promise<void> {
     const user = req.user as User;
     return this.tasksService.deleteTask(id, user);
+  }
+  @Patch(':id/reschedule')
+  @ApiOperation({ summary: 'Reschedule a task' })
+  @ApiResponse({
+    status: 200,
+    description: 'Task rescheduled successfully',
+    type: Task,
+  })
+  @ApiResponse({ status: 404, description: 'Task not found' })
+  @ApiResponse({ status: 400, description: 'Invalid new scheduled time' })
+  async rescheduleTask(
+    @Param('id') id: string,
+    @Body() rescheduleTaskDto: RescheduleTaskDto,
+    @Req() req,
+  ) {
+    const user = req.user as User;
+    return this.tasksService.rescheduleTask(id, rescheduleTaskDto, user);
   }
 }

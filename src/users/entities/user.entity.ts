@@ -8,10 +8,10 @@ import {
   UpdateDateColumn,
   Unique,
   OneToMany,
+  OneToOne,
 } from 'typeorm';
 
-// import { Task } from '../task/task.entity';
-// import { NotificationPreference } from '../notification/notification-preference.entity';
+import { NotificationPreference } from 'src/notifications/entities/notification-preference.entity';
 
 @Entity('users')
 @Unique(['email'])
@@ -19,15 +19,12 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'varchar', length: 255, unique: true })
+  @Column({ type: 'varchar', length: 255 })
   email!: string;
 
   @Column({ type: 'varchar', length: 255 })
   @Exclude()
-  password!: string; // Hashed password
-
-  //   @Column({ type: 'varchar', length: 255 })
-  //   role!: string;
+  password!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   name!: string;
@@ -35,11 +32,13 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   device_token!: string;
 
-  @OneToMany(() => Task, (task) => task.user)
+  @OneToMany(() => Task, (task) => task.user, { cascade: true })
   tasks!: Task[];
 
-  //   @OneToOne(() => NotificationPreference, (preferences) => preferences.user)
-  //   preferences: NotificationPreference;
+  @OneToOne(() => NotificationPreference, (pref) => pref.user, {
+    cascade: true,
+  })
+  notificationPreferences!: NotificationPreference;
 
   @CreateDateColumn()
   created_at!: Date;

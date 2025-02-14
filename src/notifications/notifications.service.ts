@@ -1,28 +1,51 @@
 import { Injectable } from '@nestjs/common';
-import { CreateNotificationDto } from './dto/create-notification.dto';
-import { UpdateNotificationDto } from './dto/update-notification.dto';
+import { FcmProvider } from './providers/fcm.provider';
+import { EmailProvider } from './providers/email.provider';
+import { InjectRepository } from '@nestjs/typeorm';
+import { NotificationPreference } from './entities/notification-preference.entity';
+import { Repository } from 'typeorm';
+import { UpdatePreferencesDto } from './dto/update-prefrances.dto';
 
 @Injectable()
 export class NotificationsService {
-  create(createNotificationDto: CreateNotificationDto) {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    return ` This action adds a new notification ${createNotificationDto.toString()}`;
+  constructor(
+    private readonly fcmProvider: FcmProvider,
+    private readonly emailProvider: EmailProvider,
+    @InjectRepository(NotificationPreference)
+    private readonly preferencesRepository: Repository<NotificationPreference>,
+  ) {}
+
+  async sendPushNotification(
+    deviceToken: string,
+    title: string,
+    body: string,
+  ): Promise<void> {
+    await this.fcmProvider.sendPushNotification(deviceToken, title, body);
   }
 
-  findAll() {
-    return `This action returns all notifications`;
+  async sendEmail(
+    to: string,
+    subject: string,
+    text: string,
+    html?: string,
+  ): Promise<void> {
+    await this.emailProvider.sendEmail(to, subject, text, html);
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} notification`;
-  }
+  async updatePreferences(userId: string, preferences: UpdatePreferencesDto) {
+    const userPreferences = await this.preferencesRepository.findOne({
+      where: { user: { id: userId } },
+    });
 
-  update(id: number, updateNotificationDto: UpdateNotificationDto) {
-    // eslint-disable-next-line @typescript-eslint/no-base-to-string
-    return `This action updates a #${id} notification ${updateNotificationDto.toString()}`;
-  }
+    if (!userPreferences) {
+      throw new Error('Notification preferences not found');
+    }
 
-  remove(id: number) {
-    return `This action removes a #${id} notification`;
+    userPreferences.push_enabled = preferences.pushEnabled;
+    userPreferences.email_enabled = preferences.emailEnabled;
+    userPreferences.reminder_time = preferences.reminderTime;
+
+    await this.preferencesRepository.save(userPreferences);
+    return userPreferences;
   }
 }

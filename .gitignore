@@ -3,6 +3,10 @@
 /node_modules
 /build
 
+
+##firbase
+src/config/firebase-adminsdk.json
+
 # Logs
 logs
 *.log
