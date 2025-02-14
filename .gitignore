@@ -5,7 +5,7 @@
 
 
 ##firbase
-src/config/firebase-adminsdk.json
+src/notifications/providers/serviceAccountKey.json
 
 # Logs
 logs
