@@ -63,6 +63,7 @@ services:
     image: redis:7.0
     container_name: redis_container
     restart: always
+    command: redis-server --maxmemory 500mb --maxmemory-policy allkeys-lru
     ports:
       - '6379:6379'
     networks:

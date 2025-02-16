@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
   OneToOne,
 } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
@@ -22,11 +24,9 @@ export class NotificationPreference {
     type: () => User,
     description: 'The user associated with this preference',
   })
-  @OneToOne(() => User, (user) => user.notificationPreferences, {
-    onDelete: 'CASCADE',
-  })
+  @OneToOne(() => User, (user) => user.notificationPreferences)
+  @JoinColumn()
   user!: User;
-
   @ApiProperty({
     example: true,
     description: 'Whether push notifications are enabled',

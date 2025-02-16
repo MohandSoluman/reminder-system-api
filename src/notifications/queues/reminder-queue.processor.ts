@@ -1,5 +1,5 @@
-import { InjectQueue, Process, Processor } from '@nestjs/bull';
-import { Job, Queue } from 'bull';
+import { Process, Processor } from '@nestjs/bull';
+import { Job } from 'bull';
 import { NotificationsService } from '../notifications.service';
 import { TasksService } from '../../tasks/tasks.service';
 import { forwardRef, Inject } from '@nestjs/common';
@@ -10,7 +10,6 @@ export class ReminderQueueProcessor {
     private readonly notificationsService: NotificationsService,
     @Inject(forwardRef(() => TasksService))
     private readonly tasksService: TasksService,
-    @InjectQueue('reminders') private readonly reminderQueue: Queue,
   ) {}
 
   @Process('send-reminder')
@@ -40,25 +39,11 @@ export class ReminderQueueProcessor {
     }
 
     if (email_enabled) {
-      await this.notificationsService.sendEmail(
+      this.notificationsService.sendNotificationEmail(
         user.email,
         'Task Reminder',
         reminderMessage,
       );
-    }
-  }
-
-  async removeJobsByTaskId(taskId: string): Promise<void> {
-    const jobs = await this.reminderQueue.getJobs([
-      'waiting',
-      'active',
-      'delayed',
-    ]);
-    for (const job of jobs) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      if (job.data.taskId === taskId) {
-        await job.remove();
-      }
     }
   }
 }

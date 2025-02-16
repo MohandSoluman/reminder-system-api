@@ -17,7 +17,7 @@ export class CreateTaskDto {
 
   @ApiProperty({
     description: 'Scheduled time for the task',
-    example: '2023-12-25T10:00:00Z',
+    example: '2025-2-25T10:00:00Z',
   })
   @IsNotEmpty()
   @IsDateString()

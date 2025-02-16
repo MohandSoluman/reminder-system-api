@@ -23,29 +23,46 @@ export class NotificationsService {
     await this.fcmProvider.sendPushNotification(deviceToken, title, body);
   }
 
-  async sendEmail(
+  // async sendEmail(
+  //   to: string,
+  //   subject: string,
+  //   text: string,
+  //   html?: string,
+  // ): Promise<void> {
+  //   await this.emailProvider.sendEmail(to, subject, text, html);
+  // }
+
+  sendNotificationEmail(
     to: string,
     subject: string,
     text: string,
     html?: string,
-  ): Promise<void> {
-    await this.emailProvider.sendEmail(to, subject, text, html);
+  ): void {
+    this.emailProvider.sendNotificationEmail(to, subject, text, html);
   }
 
   async updatePreferences(userId: string, preferences: UpdatePreferencesDto) {
-    const userPreferences = await this.preferencesRepository.findOne({
-      where: { user: { id: userId } },
-    });
+    let userPreferences = await this.getPreferences(userId);
 
     if (!userPreferences) {
-      throw new Error('Notification preferences not found');
+      userPreferences = this.preferencesRepository.create({
+        user: { id: userId },
+        push_enabled: preferences.pushEnabled,
+        email_enabled: preferences.emailEnabled,
+        reminder_time: preferences.reminderTime,
+      });
+    } else {
+      userPreferences.push_enabled = preferences.pushEnabled;
+      userPreferences.email_enabled = preferences.emailEnabled;
+      userPreferences.reminder_time = preferences.reminderTime;
     }
-
-    userPreferences.push_enabled = preferences.pushEnabled;
-    userPreferences.email_enabled = preferences.emailEnabled;
-    userPreferences.reminder_time = preferences.reminderTime;
 
     await this.preferencesRepository.save(userPreferences);
     return userPreferences;
+  }
+  async getPreferences(userId: string) {
+    return await this.preferencesRepository.findOne({
+      where: { user: { id: userId } },
+    });
   }
 }

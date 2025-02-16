@@ -10,14 +10,16 @@ import { User } from './users/entities/user.entity';
 import { Task } from './tasks/entities/task.entity';
 import { NotificationPreference } from './notifications/entities/notification-preference.entity';
 import { BullModule } from '@nestjs/bull';
+
 dotenv.config();
 
 @Module({
   imports: [
     BullModule.forRoot({
       redis: {
-        host: process.env['REDIS_HOST'],
+        host: process.env['REDIS_HOST'] || 'localhost',
         port: Number(process.env['REDIS_PORT']),
+        maxRetriesPerRequest: 100,
       },
     }),
     TypeOrmModule.forRoot({

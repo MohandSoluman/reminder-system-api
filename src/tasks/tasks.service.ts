@@ -13,7 +13,10 @@ import { Task } from './entities/task.entity';
 import { Repository } from 'typeorm';
 import { User } from 'src/users/entities/user.entity';
 import { instanceToPlain } from 'class-transformer';
-import { ReminderQueueProcessor } from '../notifications/queues/reminder-queue.processor';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
+import { NotificationsService } from 'src/notifications/notifications.service';
+
 @Injectable()
 export class TasksService {
   private readonly logger = new Logger(TasksService.name);
@@ -21,7 +24,9 @@ export class TasksService {
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
-    private readonly reminderQueue: ReminderQueueProcessor,
+
+    private readonly notificationsService: NotificationsService,
+    @InjectQueue('reminders') private readonly reminderQueue: Queue,
   ) {}
 
   async createTask(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
@@ -37,6 +42,7 @@ export class TasksService {
 
       const currentTime = new Date();
       if (taskScheduledTime <= currentTime) {
+        console.log(taskScheduledTime);
         throw new BadRequestException('Scheduled time must be in the future');
       }
 
@@ -47,16 +53,7 @@ export class TasksService {
       });
       const savedTask = await this.taskRepository.save(task);
 
-      const job = {
-        data: {
-          taskId: savedTask.id,
-          type: 'first',
-        },
-        opts: {},
-        attemptsMade: 0,
-        queue: null,
-      };
-      await this.reminderQueue.handleReminder(job as any);
+      await this.scheduleReminders(savedTask);
       return instanceToPlain(savedTask) as Task;
     } catch (error) {
       if (error instanceof Error) {
@@ -67,7 +64,7 @@ export class TasksService {
       } else {
         this.logger.error('Failed to create task: An unknown error occurred');
       }
-      throw new InternalServerErrorException('Failed to create task');
+      throw new BadRequestException('Failed to create task');
     }
   }
 
@@ -91,6 +88,13 @@ export class TasksService {
 
   async getTaskById(id: string, user: User): Promise<Task> {
     try {
+      // const cacheKey = `task:${id}`;
+      // const cachedTask = await this.redisClient.get(cacheKey);
+
+      // if (cachedTask) {
+      //   // eslint-disable-next-line @typescript-eslint/no-unsafe-return
+      //   return JSON.parse(cachedTask);
+      // }
       const task = await this.taskRepository
         .createQueryBuilder('task')
         .leftJoinAndSelect('task.user', 'user')
@@ -132,16 +136,10 @@ export class TasksService {
       this.taskRepository.merge(task, updateTaskDto);
 
       const updatedTask = await this.taskRepository.save(task);
-      const job = {
-        data: {
-          taskId: updatedTask.id,
-          type: 'first',
-        },
-        opts: {},
-        attemptsMade: 0,
-        queue: null,
-      };
-      await this.reminderQueue.handleReminder(job as any);
+
+      if (updateTaskDto.scheduledTime) {
+        await this.scheduleReminders(updatedTask);
+      }
 
       return instanceToPlain(updatedTask) as Task;
     } catch (error) {
@@ -170,7 +168,7 @@ export class TasksService {
       }
 
       // Remove any pending jobs related to the task from the queue
-      await this.reminderQueue.removeJobsByTaskId(id);
+      await this.removeJobsByTaskId(id);
 
       const result = await this.taskRepository.delete({
         id,
@@ -217,16 +215,7 @@ export class TasksService {
       task.scheduledTime = newScheduledTime;
 
       const updatedTask = await this.taskRepository.save(task);
-      const job = {
-        data: {
-          taskId: updatedTask.id,
-          type: 'first',
-        },
-        opts: {},
-        attemptsMade: 0,
-        queue: null,
-      };
-      await this.reminderQueue.handleReminder(job as any);
+      await this.scheduleReminders(updatedTask);
 
       return instanceToPlain(updatedTask) as Task;
     } catch (error) {
@@ -240,18 +229,18 @@ export class TasksService {
     }
   }
 
-  async findTasksDueForReminder(): Promise<Task[]> {
-    const now = new Date();
-    const fiveMinutesLater = new Date(now.getTime() + 5 * 60000); // 5 minutes later
-    return this.taskRepository
-      .createQueryBuilder('task')
-      .leftJoinAndSelect('task.user', 'user')
-      .where('task.scheduledTime BETWEEN :now AND :fiveMinutesLater', {
-        now,
-        fiveMinutesLater,
-      })
-      .getMany();
-  }
+  // async findTasksDueForReminder(): Promise<Task[]> {
+  //   const now = new Date();
+  //   const fiveMinutesLater = new Date(now.getTime() + 5 * 60000); // 5 minutes later
+  //   return this.taskRepository
+  //     .createQueryBuilder('task')
+  //     .leftJoinAndSelect('task.user', 'user')
+  //     .where('task.scheduledTime BETWEEN :now AND :fiveMinutesLater', {
+  //       now,
+  //       fiveMinutesLater,
+  //     })
+  //     .getMany();
+  // }
 
   async getTaskDetails(taskId: string): Promise<Task | undefined> {
     try {
@@ -285,6 +274,49 @@ export class TasksService {
         throw error;
       }
       throw new InternalServerErrorException('Error fetching task details');
+    }
+  }
+
+  async scheduleReminders(task: Task): Promise<void> {
+    const { id, scheduledTime, user } = task;
+
+    const userPreferences = await this.notificationsService.getPreferences(
+      user.id,
+    );
+    if (!userPreferences) {
+      throw new InternalServerErrorException('User preferences not found');
+    }
+    const { reminder_time } = userPreferences;
+
+    // Schedule first reminder (X minutes before, based on user preference)
+    const firstReminderTime = new Date(
+      scheduledTime.getTime() - reminder_time * 60000,
+    );
+    await this.reminderQueue.add(
+      'send-reminder',
+      { taskId: id, type: 'first' },
+      { delay: firstReminderTime.getTime() - Date.now() },
+    );
+    this.logger.log(`First reminder added to queue for task ${id}`);
+
+    // Schedule final reminder (at scheduled time)
+    await this.reminderQueue.add(
+      'send-reminder',
+      { taskId: id, type: 'final' },
+      { delay: scheduledTime.getTime() - Date.now() },
+    );
+  }
+  async removeJobsByTaskId(taskId: string): Promise<void> {
+    const jobs = await this.reminderQueue.getJobs([
+      'waiting',
+      'active',
+      'delayed',
+    ]);
+    for (const job of jobs) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      if (job.data.taskId === taskId) {
+        await job.remove();
+      }
     }
   }
 }
