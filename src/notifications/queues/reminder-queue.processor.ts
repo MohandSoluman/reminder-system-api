@@ -45,5 +45,13 @@ export class ReminderQueueProcessor {
         reminderMessage,
       );
     }
+
+    if (email_enabled) {
+      this.notificationsService.sendEmail(
+        user.email,
+        'Task Reminder',
+        reminderMessage,
+      );
+    }
   }
 }

@@ -23,14 +23,9 @@ export class NotificationsService {
     await this.fcmProvider.sendPushNotification(deviceToken, title, body);
   }
 
-  // async sendEmail(
-  //   to: string,
-  //   subject: string,
-  //   text: string,
-  //   html?: string,
-  // ): Promise<void> {
-  //   await this.emailProvider.sendEmail(to, subject, text, html);
-  // }
+  sendEmail(to: string, subject: string, text: string, html?: string): void {
+    this.emailProvider.sendEmail(to, subject, text, html);
+  }
 
   sendNotificationEmail(
     to: string,

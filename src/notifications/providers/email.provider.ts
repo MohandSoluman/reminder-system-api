@@ -2,6 +2,8 @@
 import { Injectable } from '@nestjs/common';
 //import * as nodemailer from 'nodemailer';
 import { MailtrapClient } from 'mailtrap';
+import { Nodemailer } from 'nodemailer';
+import { MailtrapTransport } from 'mailtrap';
 
 @Injectable()
 export class EmailProvider {
@@ -16,28 +18,37 @@ export class EmailProvider {
     // });
   }
 
-  // async sendEmail(
-  //   to: string,
-  //   subject: string,
-  //   text: string,
-  //   html?: string,
-  // ): Promise<void> {
-  //   const mailOptions = {
-  //     from: process.env['SMTP_USER'],
-  //     to,
-  //     subject,
-  //     text,
-  //     html,
-  //   };
+  sendEmail(to: string, subject: string, text: string, html?: string): void {
+    const TOKEN = '05407a3ebcc64b7731fe027efd2bf537';
 
-  //   try {
-  //     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-  //     await this.transporter.sendMail(mailOptions);
-  //     console.log('Email sent successfully');
-  //   } catch (error) {
-  //     console.error('Error sending email:', error);
-  //   }
-  // }
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
+    const transport = Nodemailer.createTransport(
+      MailtrapTransport({
+        token: TOKEN,
+        testInboxId: 3313127,
+      }),
+    );
+
+    const sender = {
+      address: 'hello@example.com',
+      name: 'Mailtrap Test',
+    };
+
+    transport
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .sendMail({
+        from: sender,
+        to: to,
+        subject: subject,
+        text: text,
+        category: html,
+        sandbox: true,
+      })
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+      .catch((error) => {
+        console.error('Error sending email:', error);
+      });
+  }
 
   sendNotificationEmail(
     to: string,
