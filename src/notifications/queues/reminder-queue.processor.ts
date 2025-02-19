@@ -18,7 +18,6 @@ export class ReminderQueueProcessor {
     const task = await this.tasksService.getTaskDetails(taskId);
 
     if (!task) {
-      // Task has been deleted, do not send notification
       return;
     }
     const { user, title } = task;
@@ -37,7 +36,7 @@ export class ReminderQueueProcessor {
         reminderMessage,
       );
     }
-
+    //for testing
     if (email_enabled) {
       this.notificationsService.sendNotificationEmail(
         user.email,

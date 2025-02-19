@@ -229,19 +229,6 @@ export class TasksService {
     }
   }
 
-  // async findTasksDueForReminder(): Promise<Task[]> {
-  //   const now = new Date();
-  //   const fiveMinutesLater = new Date(now.getTime() + 5 * 60000); // 5 minutes later
-  //   return this.taskRepository
-  //     .createQueryBuilder('task')
-  //     .leftJoinAndSelect('task.user', 'user')
-  //     .where('task.scheduledTime BETWEEN :now AND :fiveMinutesLater', {
-  //       now,
-  //       fiveMinutesLater,
-  //     })
-  //     .getMany();
-  // }
-
   async getTaskDetails(taskId: string): Promise<Task | undefined> {
     try {
       const task = await this.taskRepository
@@ -292,6 +279,16 @@ export class TasksService {
     const firstReminderTime = new Date(
       scheduledTime.getTime() - reminder_time * 60000,
     );
+
+    const currentTime = new Date();
+    const minLeadTime = 5 * 60 * 1000; // Minimum required time before scheduling (5 minutes)
+
+    if (scheduledTime.getTime() - currentTime.getTime() < minLeadTime) {
+      throw new BadRequestException(
+        'Task must be scheduled at least 5 minutes in the future.',
+      );
+    }
+
     await this.reminderQueue.add(
       'send-reminder',
       { taskId: id, type: 'first' },
@@ -305,6 +302,7 @@ export class TasksService {
       { taskId: id, type: 'final' },
       { delay: scheduledTime.getTime() - Date.now() },
     );
+    this.logger.log(`Final reminder added to queue for task ${id}`);
   }
   async removeJobsByTaskId(taskId: string): Promise<void> {
     const jobs = await this.reminderQueue.getJobs([

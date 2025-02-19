@@ -10,6 +10,7 @@ import { User } from './users/entities/user.entity';
 import { Task } from './tasks/entities/task.entity';
 import { NotificationPreference } from './notifications/entities/notification-preference.entity';
 import { BullModule } from '@nestjs/bull';
+import { ConfigModule } from '@nestjs/config';
 
 dotenv.config();
 
@@ -31,6 +32,9 @@ dotenv.config();
       database: process.env['MYSQL_DATABASE'] || 'reminderDB',
       entities: [User, Task, NotificationPreference],
       synchronize: process.env['NODE_ENV'] !== 'production',
+    }),
+    ConfigModule.forRoot({
+      isGlobal: true,
     }),
     UsersModule,
     AuthModule,

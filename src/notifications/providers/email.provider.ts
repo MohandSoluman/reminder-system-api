@@ -1,56 +1,67 @@
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
-import { Injectable } from '@nestjs/common';
-//import * as nodemailer from 'nodemailer';
+import { Logger, Injectable } from '@nestjs/common';
+import * as nodemailer from 'nodemailer';
+import { ConfigService } from '@nestjs/config';
 import { MailtrapClient } from 'mailtrap';
-import { Nodemailer } from 'nodemailer';
-import { MailtrapTransport } from 'mailtrap';
 
 @Injectable()
 export class EmailProvider {
-  constructor() {
-    // // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
-    // this.transporter = nodemailer.createTransport({
-    //   service: 'gmail',
-    //   auth: {
-    //     user: process.env['SMTP_USER'],
-    //     pass: process.env['SMTP_PASS'],
-    //   },
-    // });
+  private readonly logger = new Logger(EmailProvider.name);
+  private readonly transport: nodemailer.Transporter;
+  constructor(private readonly configService: ConfigService) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+    this.transport = nodemailer.createTransport({
+      host: this.configService.get<string>('SMTP_HOST'),
+      port: this.configService.get<number>('SMTP_PORT', 2525),
+      secure: false,
+      auth: {
+        user: this.configService.get<string>('SMTP_USER'),
+        pass: this.configService.get<string>('SMTP_PASSWORD'),
+      },
+    });
   }
 
-  sendEmail(to: string, subject: string, text: string, html?: string): void {
-    const TOKEN = '05407a3ebcc64b7731fe027efd2bf537';
+  async sendEmail(
+    to: string,
+    subject: string,
+    text: string,
+    html?: string,
+  ): Promise<void> {
+    const sender = this.getSenderDetails();
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access
-    const transport = Nodemailer.createTransport(
-      MailtrapTransport({
-        token: TOKEN,
-        testInboxId: 3313127,
-      }),
-    );
-
-    const sender = {
-      address: 'hello@example.com',
-      name: 'Mailtrap Test',
-    };
-
-    transport
+    try {
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      .sendMail({
+      await this.transport.sendMail({
         from: sender,
-        to: to,
-        subject: subject,
-        text: text,
-        category: html,
-        sandbox: true,
-      })
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      .catch((error) => {
-        console.error('Error sending email:', error);
+        to,
+        subject,
+        text,
+        html,
       });
+
+      this.logger.log(`Email frommethod--SMTP sent to: ${to}`);
+    } catch (error) {
+      this.logger.error('Error sending email SMTP:', error);
+      throw error;
+    }
   }
 
-  sendNotificationEmail(
+  private getSenderDetails() {
+    return {
+      email: this.configService.get<string>(
+        'SENDEREMAIL',
+        'DashReminderSystemApi@example.com',
+      ),
+      name: this.configService.get<string>(
+        'SENDERNAME',
+        'Dash Reminder System',
+      ),
+    };
+  }
+
+  //for testing
+  async sendNotificationEmail(
     to: string,
     subject: string,
     text: string,
@@ -77,7 +88,7 @@ export class EmailProvider {
       ];
 
       // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      client.testing
+      await client.testing
         .send({
           from: sender,
           to: recipients,
@@ -88,8 +99,9 @@ export class EmailProvider {
         })
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
         .then(console.log, console.error);
+      this.logger.log(`Email sent to ------------------->>>${to}`);
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('Error sending email method 2:', error);
     }
   }
 }

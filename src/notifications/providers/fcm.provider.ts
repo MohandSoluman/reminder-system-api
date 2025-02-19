@@ -1,19 +1,21 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 
 @Injectable()
 export class FcmProvider {
+  private readonly logger = new Logger(FcmProvider.name);
   constructor() {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const serviceAccount = JSON.parse(
       process.env['FIREBASE_SERVICE_ACCOUNT_KEY'] as string,
     );
 
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
+    if (!admin.apps.length) {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+      });
+    }
   }
-
   async sendPushNotification(
     deviceToken: string,
     title: string,
@@ -26,9 +28,9 @@ export class FcmProvider {
 
     try {
       await admin.messaging().send(message);
-      console.log('Push notification sent successfully');
+      this.logger.log(`Push notification sent to ${deviceToken}`);
     } catch (error) {
-      console.error('Error sending push notification:', error);
+      this.logger.error('Error sending push notification:', error);
     }
   }
 }

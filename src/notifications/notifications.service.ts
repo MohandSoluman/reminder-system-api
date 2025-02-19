@@ -23,17 +23,18 @@ export class NotificationsService {
     await this.fcmProvider.sendPushNotification(deviceToken, title, body);
   }
 
-  sendEmail(to: string, subject: string, text: string, html?: string): void {
-    this.emailProvider.sendEmail(to, subject, text, html);
+  async sendEmail(to: string, subject: string, text: string, html?: string) {
+    await this.emailProvider.sendEmail(to, subject, text, html);
   }
 
-  sendNotificationEmail(
+  //for testing
+  async sendNotificationEmail(
     to: string,
     subject: string,
     text: string,
     html?: string,
-  ): void {
-    this.emailProvider.sendNotificationEmail(to, subject, text, html);
+  ) {
+    await this.emailProvider.sendNotificationEmail(to, subject, text, html);
   }
 
   async updatePreferences(userId: string, preferences: UpdatePreferencesDto) {
